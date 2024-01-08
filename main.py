@@ -7,6 +7,9 @@ Date created: Jan 7, 2024
 #https://medium.com/google-cloud/building-a-flask-python-crud-api-with-cloud-firestore-firebase-and-deploying-on-cloud-run-29a10c502877 
 from flask import Flask, request, jsonify
 from firebase_admin import credentials, firestore, auth, exceptions, initialize_app
+import requests
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__) #initialize the main central object
 
@@ -40,6 +43,7 @@ unauthorizedDict = {
 }
 
 ADMIN_TOKEN:str = 'NtoRDfiE7vXf1YRKdC3vWy1on9X2'
+API_KEY:str|None = os.getenv('API_KEY')
 
 #https://stackoverflow.com/questions/14993318/catching-a-500-server-error-in-flask
 @app.errorhandler(500)
@@ -52,7 +56,30 @@ def sendDefault():
 
 @app.route("/login", methods=['POST'])
 def login():
-    return "<h2>As Salaamu Alaikum</h2>"
+    try:
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        bodyDict = {
+            'email': email,
+            'password': password
+        }
+
+        #syntax referenced from https://www.educative.io/answers/how-to-make-api-calls-in-python, implemented on my own
+        response = requests.post(f'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={API_KEY}', json=(bodyDict))
+        responseJson = response.json()
+
+        if('idToken' in responseJson):
+            print('Success')
+            return jsonify(responseJson)
+        
+        if(responseJson['error']['code']==400):
+            return unauthorizedDict
+
+        raise Exception('Unknown error occurred')
+    except Exception as e:
+        print(f'Exception occurred while logging in {e}')
+        raise Exception(e)
 
 #https://firebase.google.com/docs/reference/admin/python/firebase_admin.auth 
 @app.route("/sign-up",  methods=['POST'])
@@ -64,9 +91,8 @@ def signUp():
         if(email==None or password==None):
             return incompleteDict
 
-        res = firebase_auth.create_user(email=email, password=password)
-        if(res):
-            return successDict
+        firebase_auth.create_user(email=email, password=password)
+        return successDict
         
     except exceptions.FirebaseError as e:
         print('Error occurred while creating user FirebaseError: {e}')
