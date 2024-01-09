@@ -10,7 +10,6 @@ from firebase_admin import credentials, firestore, auth, exceptions, initialize_
 import requests
 import os
 from dotenv import load_dotenv
-
 app = Flask(__name__) #initialize the main central object
 
 #initialize firebase
@@ -35,20 +34,43 @@ errorDict = {
 }
 
 incompleteDict = {
-    'status': 422
+    'status': 400
 }
 
 unauthorizedDict = {
     'status': 403
 }
 
+load_dotenv('./config/.env')
 ADMIN_TOKEN:str = 'NtoRDfiE7vXf1YRKdC3vWy1on9X2'
-API_KEY:str|None = os.getenv('API_KEY')
+API_KEY:str|None = os.getenv('API_KEY') #syntax referenced from https://stackoverflow.com/questions/40216311/reading-in-environment-variables-from-an-environment-file, implemented on my own
 
+uid = None
 #https://stackoverflow.com/questions/14993318/catching-a-500-server-error-in-flask
 @app.errorhandler(500)
 def handleError(error):
     return errorDict
+
+@app.before_request
+def verifyTokenMiddleware():
+    global uid
+    uid = None
+
+    urlSegment = request.path
+    if(urlSegment != '/login' and urlSegment != '/sign-up'):
+        if(request.authorization == None):
+            return incompleteDict
+        
+        tokenId = request.authorization.token
+        
+        if(tokenId==None):
+            return unauthorizedDict
+        else:
+            uid = verifyIfTokenIsValid(tokenId)
+            if(uid!=None):
+                pass
+            else: 
+                return unauthorizedDict
 
 @app.route("/")
 def sendDefault():
@@ -69,8 +91,12 @@ def login():
         response = requests.post(f'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={API_KEY}', json=(bodyDict))
         responseJson = response.json()
 
+        print('Logging in')
         if('idToken' in responseJson):
             print('Success')
+
+            customIdToken = firebase_auth.create_custom_token(responseJson['localId'])
+            responseJson['idToken'] = customIdToken
             return jsonify(responseJson)
         
         if(responseJson['error']['code']==400):
@@ -185,4 +211,8 @@ def getConnections():
     
 
 def checkIfHasAdminAccess() -> bool:
-    return (request.form.get('token') == ADMIN_TOKEN)
+    return (uid == ADMIN_TOKEN)
+
+def verifyIfTokenIsValid(tokenId:str) -> str|None:
+    decodedToken = auth.verify_id_token(tokenId)
+    return decodedToken['uid']
