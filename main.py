@@ -66,10 +66,10 @@ def verifyTokenMiddleware():
         if(tokenId==None):
             return unauthorizedDict
         else:
-            uid = verifyIfTokenIsValid(tokenId)
-            if(uid!=None):
-                pass
-            else: 
+            try:
+                uid = verifyIfTokenIsValid(tokenId)
+            except Exception as e:
+                print(f'Exception occurred while verifying tokenId: {e}')
                 return unauthorizedDict
 
 @app.route("/")
@@ -84,7 +84,8 @@ def login():
 
         bodyDict = {
             'email': email,
-            'password': password
+            'password': password,
+            'returnSecureToken': True
         }
 
         #syntax referenced from https://www.educative.io/answers/how-to-make-api-calls-in-python, implemented on my own
@@ -95,8 +96,6 @@ def login():
         if('idToken' in responseJson):
             print('Success')
 
-            customIdToken = firebase_auth.create_custom_token(responseJson['localId'])
-            responseJson['idToken'] = customIdToken
             return jsonify(responseJson)
         
         if(responseJson['error']['code']==400):
@@ -211,6 +210,7 @@ def getConnections():
     
 
 def checkIfHasAdminAccess() -> bool:
+    print(uid)
     return (uid == ADMIN_TOKEN)
 
 def verifyIfTokenIsValid(tokenId:str) -> str|None:
