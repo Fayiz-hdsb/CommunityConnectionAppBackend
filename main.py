@@ -96,9 +96,14 @@ def login():
         if('idToken' in responseJson):
             print('Success')
 
-            return jsonify(responseJson)
+            result = {
+                'status': 200,
+                'data': responseJson
+            }
+            return jsonify(result)
         
         if(responseJson['error']['code']==400):
+            print('Unauthenticated')
             return unauthorizedDict
 
         raise Exception('Unknown error occurred')
@@ -203,7 +208,12 @@ def getConnections():
             
             allListings.append(modifiedDoc)
 
-        return allListings
+        result = {
+            'status':200,
+            'data': allListings
+        }
+
+        return result
     except Exception as e:
         print(f"An error occurred while getting connections: {e}")
         raise Exception(e)
