@@ -220,7 +220,6 @@ def getConnections():
     
 
 def checkIfHasAdminAccess() -> bool:
-    print(uid)
     return (uid == ADMIN_TOKEN)
 
 def verifyIfTokenIsValid(tokenId:str) -> str|None:
