@@ -95,6 +95,7 @@ def login():
         print('Logging in')
         if('idToken' in responseJson):
             print('Success')
+            responseJson['isAdmin'] = (responseJson['localId'] == ADMIN_TOKEN) 
 
             result = {
                 'status': 200,
