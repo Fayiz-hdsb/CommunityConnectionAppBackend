@@ -44,7 +44,7 @@ unauthorizedDict = {
 }
 
 load_dotenv('./config/.env')
-ADMIN_TOKEN:str = 'NtoRDfiE7vXf1YRKdC3vWy1on9X2'
+ADMIN_TOKEN:str|None = os.getenv('ADMIN_UID')
 API_KEY:str|None = os.getenv('API_KEY') #syntax referenced from https://stackoverflow.com/questions/40216311/reading-in-environment-variables-from-an-environment-file, implemented on my own
 
 uid = None
