@@ -10,6 +10,8 @@ from firebase_admin import credentials, firestore, auth, exceptions, initialize_
 import requests
 import os
 from dotenv import load_dotenv
+from collections.abc import Callable
+
 app = Flask(__name__) #initialize the main central object
 
 #initialize firebase
@@ -145,7 +147,7 @@ def createConnection():
     try:
         title = request.form.get('title')
         description = request.form.get('description')
-        authorId = request.form.get('id')
+        authorId = uid
         type = request.form.get('type')
         link = request.form.get('link')
         location = request.form.get('location')
@@ -193,21 +195,37 @@ def approveConnection():
 def getConnections():
     try:
         shouldFetchUnapprovedRequests:bool = (request.args.get('unapproved') == 'true')
-
+       
+        isAdmin:bool = False
         if(shouldFetchUnapprovedRequests):
             if(checkIfHasAdminAccess()):
-                docs = unapprovedListingsRef.stream()
+                isAdmin = True
             else:
                 return unauthorizedDict
-        else:
-            docs = approvedListingsRef.stream()
-
+        
         allListings = []
-        for doc in docs:
-            modifiedDoc = doc.to_dict()
+        docs = None
+        if(isAdmin):
+            docs = unapprovedListingsRef.stream()
+        else:
+            docs = unapprovedListingsRef.where('authorId', '==', uid).get()
+
+        def changeFieldParamsForUnverfiedDocs(doc, modifiedDoc):
             modifiedDoc['id'] = doc.id
-            
-            allListings.append(modifiedDoc)
+            modifiedDoc['approved'] = False
+
+            return modifiedDoc
+
+        allListings += convertDocumentsIntoResponseList(docs, changeFieldParamsForUnverfiedDocs)
+
+        def changeFieldParamsForVerifiedDocs(doc, modifiedDoc):
+            modifiedDoc['id'] = doc.id
+            modifiedDoc['approved'] = True
+
+            return modifiedDoc
+
+        docs = approvedListingsRef.stream()
+        allListings += convertDocumentsIntoResponseList(docs, changeFieldParamsForVerifiedDocs)
 
         result = {
             'status':200,
@@ -218,7 +236,16 @@ def getConnections():
     except Exception as e:
         print(f"An error occurred while getting connections: {e}")
         raise Exception(e)
+
+def convertDocumentsIntoResponseList(docs, changeFieldParams):
+    allListings = []
+    for doc in docs:
+        modifiedDoc = doc.to_dict()
+        modifiedDoc = changeFieldParams(doc, modifiedDoc)
+        
+        allListings.append(modifiedDoc)
     
+    return allListings
 
 def checkIfHasAdminAccess() -> bool:
     return (uid == ADMIN_TOKEN)
